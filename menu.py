@@ -1,5 +1,6 @@
 import curses
-import logging
+from dataclasses import dataclass
+from typing import Literal
 
 
 class Menu:
@@ -25,30 +26,30 @@ class Menu:
         self.active = active
         self.available_space = self.endy - self.starty + 1
         self.scroll_start = scroll_start
-        self.scroll_end = (len(items) -
-                           1 if len(items) <= self.available_space +
-                           self.scroll_start else self.available_space +
-                           self.scroll_start - 1)
+        self.scroll_end = (
+            len(items) - 1
+            if len(items) <= self.available_space + self.scroll_start
+            else self.available_space + self.scroll_start - 1
+        )
 
     def select(self, index):
         if index >= 0 and index <= len(self.items) - 1:
             self.selected = index
 
-    def render(self, status=None):
+    def render(self, status: dict = None):
         scry, scrx = self.stdscr.getmaxyx()
-        for i, itemIndex in enumerate(
-                range(self.scroll_start, self.scroll_end + 1)):
-            item = self.items[itemIndex]
+        for i, item_idx in enumerate(range(self.scroll_start, self.scroll_end + 1)):
+            item = self.items[item_idx]
             x = self.startx
             y = self.starty + i
-            selected = itemIndex == self.selected and self.active
+            selected = item_idx == self.selected and self.active
             if y >= 0 and y <= scry and x >= 0 and x <= scrx:
                 color = None
-                if item == status['title']:
+                if status and 'title' in status and item == status['title']:
                     color = 12
                 if selected:
                     color = 6
-                self.__printString(y, x, item, color)
+                self.print_string(y, x, item, color)
 
     def receive_input(self, key):
         if key == 'KEY_UP':
@@ -72,9 +73,79 @@ class Menu:
         self.scroll_start += amount
         self.scroll_end += amount
 
-    def __printString(self, y, x, text, color):
+    def print_string(self, y, x, text, color):
         if color:
             self.stdscr.attron(curses.color_pair(color))
         self.stdscr.addstr(y, x, text)
         if color:
             self.stdscr.attroff(curses.color_pair(color))
+
+
+@dataclass
+class Column:
+    name: str
+    width: int = 0
+    align: Literal['left', 'center', 'right'] = 'left'
+
+    def align_item(self, item) -> str:
+        """Returns aligned string based on cell value"""
+        if self.align == 'left':
+            return f'{item:<{self.width}}'
+        elif self.align == 'right':
+            return f'{item:>{self.width}}'
+        else:
+            return f'{item:^{self.width}}'
+
+
+class TableMenu(Menu):
+
+    SEPARATOR = ' '
+
+    def __init__(
+        self,
+        stdscr,
+        columns,
+        items=[],
+        starty=0,
+        startx=0,
+        endy=0,
+        endx=0,
+        active=False,
+        selected=0,
+        scroll_start=0,
+    ):
+        self.columns = columns
+        free_row_width = endx - startx - 2
+        free_row_width -= len(self.SEPARATOR) * (len(self.columns) - 1) 
+        free_row_width -= sum([c.width for c in self.columns])
+
+        if free_row_width < 0:
+            raise Exception('Table too wide')
+
+        flexible_cols = [c for c in columns if c.width == 0]
+        for col in flexible_cols:
+            col.width = free_row_width // len(flexible_cols)
+
+        super().__init__(stdscr, items, starty, startx, endy, endx, active, selected, scroll_start)
+
+    def render_table_row(self, row) -> str:
+        """
+        Returns a string representation of a table row
+        """
+        return self.SEPARATOR.join([self.columns[i].align_item(item) for i, item in enumerate(row)])
+
+    def render(self, status: dict = None):
+        scry, scrx = self.stdscr.getmaxyx()
+        for i, item_idx in enumerate(range(self.scroll_start, self.scroll_end + 1)):
+            item = self.items[item_idx]
+            x = self.startx
+            y = self.starty + i
+            selected = item_idx == self.selected and self.active
+
+            if y >= 0 and y <= scry and x >= 0 and x <= scrx:
+                color = None
+                if 'title' in status and status['title'] == item[1]:
+                    color = 12
+                if selected:
+                    color = 6
+                self.print_string(y, x, self.render_table_row(item), color)

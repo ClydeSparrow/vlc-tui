@@ -1,13 +1,15 @@
 import curses
 import logging
-from component import Component
+
 from util import ms_to_hms, truncate
+
+from components.base import BaseComponent
 
 play_icon = "▶️"
 pause_icon = "⏸️"
 
 
-class NowPlaying(Component):
+class NowPlaying(BaseComponent):
     def restart(self):
         scry, scrx = self.stdscr.getmaxyx()
         self.startx = 0
@@ -21,6 +23,7 @@ class NowPlaying(Component):
             self.endy,
             self.endx,
         )
+
 
 class NowPlayingComponent:
     def __init__(self, stdscr, starty, startx, endy, endx):
@@ -37,7 +40,8 @@ class NowPlayingComponent:
         self.progress_percent = 0
 
     def render(self, status):
-        self.playing = status["state"] == "playing"        
+        logging.debug(f"NowPlayingComponent.render status: {status}")
+        self.playing = status["state"] == "playing"
         if self.playing:
             self.track_name = status["title"]
             self.track_length = status["length"]
@@ -46,13 +50,15 @@ class NowPlayingComponent:
 
         status_symbol = play_icon if self.playing else pause_icon
         timestamp = ms_to_hms(self.time_elapsed) + "/" + ms_to_hms(self.track_length)
-        
+
         max_length = self.endx - self.startx - (len(timestamp) + 3)
         max_length = max_length if max_length > 0 else 0
 
-        progress_length = round(((self.endx - self.startx - 4) / 100) * self.progress_percent)
+        progress_length = round(
+            ((self.endx - self.startx - 4) / 100) * self.progress_percent
+        )
         track_info = truncate(status_symbol + "  " + self.track_name, max_length)
-        
+
         # Track info line
         self.stdscr.addstr(self.starty, self.startx + 1, track_info)
         self.stdscr.addstr(self.starty, self.endx - len(timestamp), timestamp)

@@ -1,3 +1,3 @@
 import logging
 
-logging.basicConfig(filename='log', level=logging.DEBUG, filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='log', level=logging.INFO, filemode='w', format='%(levelname)s - %(message)s')

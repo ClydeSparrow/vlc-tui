@@ -1,8 +1,13 @@
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+import argparse
 import curses
 import os
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from email import parser
+from functools import partial
 
+from db import init_database
 from main_form import MainForm
+from util import SUPPORTED_EXTS
 
 
 @contextmanager
@@ -37,19 +42,40 @@ def init_colors():
 
 
 class App:
-    def __init__(self, stdscr):
+    def __init__(self, stdscr, filepath, cursor):
         init_colors()
-        self.main_form = MainForm(stdscr, "/home/pi/Downloads/Unicorn - 20.mp4")
-        # self.main_form = MainForm(stdscr)
+        self.main_form = MainForm(stdscr, filepath, cursor)
 
 
-def main():
-    os.environ['VLC_VERBOSE'] = '-1'
-    os.environ['XDG_RUNTIME_DIR'] = '/run/user/1000'
-
-    with supress_stdout_stderr():
-        curses.wrapper(App)
+def validate_filepath(filepath):
+    if not os.path.exists(filepath):
+        raise argparse.ArgumentTypeError(f"Filepath '{filepath}' does not exist")
+    if (
+        os.path.isfile(filepath)
+        and not os.path.splitext(filepath)[1] in SUPPORTED_EXTS
+        # os.path.basename(filepath).split(".")[-1] in SUPPORTED_EXTS
+    ):
+        raise argparse.ArgumentTypeError(
+            f"File '{filepath}' is not a supported filetype"
+        )
+    return filepath
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="VLC Terminal Player")
+    parser.add_argument(
+        "player_path", type=str, help="Path to directory or file to play"
+    )
+    args = parser.parse_args()
+
+    validate_filepath(args.player_path)
+
+    os.environ["VLC_VERBOSE"] = "-1"
+    os.environ["XDG_RUNTIME_DIR"] = "/run/user/1000"
+
+    conn = init_database()
+
+    app_partial = partial(App, filepath=args.player_path, cursor=conn.cursor())
+    with supress_stdout_stderr():
+        curses.wrapper(app_partial)
+    conn.close()

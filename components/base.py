@@ -1,7 +1,8 @@
 import curses
+import logging
 
 
-class Component:
+class BaseComponent:
     component = None
     startx = 0
     starty = 0
@@ -53,8 +54,7 @@ class Component:
 
         # title
         if self.title:
-            self.stdscr.addstr(self.starty, self.startx + 2,
-                               " " + self.title + " ")
+            self.stdscr.addstr(self.starty, self.startx + 2, " " + self.title + " ")
 
         self.stdscr.attroff(curses.color_pair(color))
 
@@ -66,6 +66,8 @@ class Component:
             self.create_border(10)
         elif self.interactive:
             self.create_border(5 if self.component.active else 4)
+
+        # logging.debug(f"Rendering component {self.__class__.__name__}")
         self.component.render(status)
 
     def receive_input(self, key):
