@@ -1,6 +1,7 @@
 import subprocess
 
 SEEK_STEP = 5
+TRIGGER_WAS_PLAYED = 60 * 2 + 30    # Update media to mark played when less than 2m30s left
 SUPPORTED_EXTS = [
     '.mp4',
 ]

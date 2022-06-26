@@ -3,7 +3,8 @@ import os
 from typing import Generator, List
 
 from db import get_media_details, insert_media, update_media
-from util import SUPPORTED_EXTS, get_media_length, ms_to_hms
+from util import (SUPPORTED_EXTS, TRIGGER_WAS_PLAYED, get_media_length,
+                  ms_to_hms)
 
 
 class DirectoryItem:
@@ -55,11 +56,15 @@ class DirectoryItem:
             return ''
 
     def make_savepoint(self, stoptime):
-        if not self.is_media:
+        if not self.is_media or self.was_played:
             return
 
-        update_media(self.cursor, self.filepath, stoptime=stoptime)
-        self.stoptime = stoptime
+        if self.duration - stoptime < TRIGGER_WAS_PLAYED * 1_000:
+            self.was_played = True
+            update_media(self.cursor, self.filepath, was_played=True)
+        else:
+            self.stoptime = stoptime
+            update_media(self.cursor, self.filepath, stoptime=stoptime)
 
     def as_row(self):        
         logging.debug(repr(self))
