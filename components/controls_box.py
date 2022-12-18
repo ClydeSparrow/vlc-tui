@@ -26,5 +26,6 @@ class ControlsBox(BaseComponent):
             "[G] Scroll to top",
             "[⇧+G] Scroll to bottom",
             "[O] Skip opening (+90s)",
+            "[M] Mark as played",
             "[Q] Quit",
         ]
